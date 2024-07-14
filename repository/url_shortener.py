@@ -78,8 +78,9 @@ def update_url_expiry(db, d: UrlShortener) -> bool:
     expiry_duration = datetime.now().replace(tzinfo=None) - d.created_at.replace(
         tzinfo=None
     )
-    if expiry_duration.days < d.expiry_days:
+    if expiry_duration.days <= d.expiry_days:
         return False
+    d.updated_at = datetime.now()
     d.expired = True
     db.commit()
     return True

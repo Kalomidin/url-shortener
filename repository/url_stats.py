@@ -29,7 +29,6 @@ class UrlStats(Base):
     url_id: uuid.UUID = Column(Uuid, nullable=False)
     status: UrlStatus = Column(AlchemyEnum(UrlStatus), nullable=False, default=0)
     created_at: date = Column(TIMESTAMP(timezone=True), server_default=text("now()"))
-    updated_at: date = Column(TIMESTAMP(timezone=True), server_default=text("now()"))
 
     # Define an index on url_id column
     __table_args__ = (Index("index_url_id", "url_id"),)
