@@ -1,15 +1,15 @@
-from datetime import datetime, timedelta
+from datetime import datetime
 import uuid
 from fastapi import HTTPException, Depends
 from sqlalchemy.orm import Session
 from starlette import status
 from fastapi import APIRouter
-from sqlalchemy.dialects.postgresql import insert as pg_insert
 from fastapi.responses import RedirectResponse
-import repository.models as models
 import schemas
 from repository.database import get_db
 import error
+import repository.url_shortener as url_shortener_repo
+import repository.url_stats as url_stats_repo
 
 router = APIRouter(prefix="/url_shortener", tags=["UrlShortener"])
 
@@ -25,27 +25,13 @@ def create_url_shorten(
     url = req.url
     url_id = url_to_uuid(url)
     id = url_to_uuid(url + datetime.now().isoformat())
-    stmt = (
-        pg_insert(models.UrlShortener)
-        .values(id=id, url=url, url_id=url_id)
-        .on_conflict_do_nothing()
-    )
-    db.connection().execute(stmt)
-    db.commit()
-    d: models.UrlShortener = (
-        db.query(models.UrlShortener)
-        .filter(
-            models.UrlShortener.url_id == url_id, models.UrlShortener.expired == False
-        )
-        .first()
-    )
-    resp = schemas.CreateUrlShortenerResponse(short_url=d.id.hex)
-    return resp
+    d = url_shortener_repo.create_url_shorten(db, id, url, url_id)
+    return schemas.CreateUrlShortenerResponse(short_url=d.id.hex)
 
 
 @router.get("/{short_url}", status_code=status.HTTP_301_MOVED_PERMANENTLY)
 def get_url(short_url: str, db: Session = Depends(get_db)):
-    queryStatus = models.UrlStatus.OK
+    queryStatus = url_stats_repo.UrlStatus.OK
     id = None
     try:
         id = uuid.UUID(short_url)
@@ -60,24 +46,13 @@ def get_url(short_url: str, db: Session = Depends(get_db)):
         raise e
     finally:
         try:
-            stmt = (
-                pg_insert(models.UrlStats)
-                .values(url_id=id, status=queryStatus)
-                .on_conflict_do_nothing()
-            )
-            db.connection().execute(stmt)
-            db.commit()
-            print("Stats added")
+            url_stats_repo.create_url_stats(db, id, queryStatus)
         except Exception as e:
             print("Error adding stats", e)
 
 
 def _get_url(id: uuid.UUID, db: Session) -> RedirectResponse:
-    d: models.UrlShortener = (
-        db.query(models.UrlShortener)
-        .filter(models.UrlShortener.id == id, models.UrlShortener.expired == False)
-        .first()
-    )
+    d = url_shortener_repo.find_url_shorten_by_url_id(db, id)
     if d is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=error.HTTPERRNOTFOUND
@@ -85,9 +60,7 @@ def _get_url(id: uuid.UUID, db: Session) -> RedirectResponse:
     # check if it is expired
     expired = datetime.now().replace(tzinfo=None) - d.created_at.replace(tzinfo=None)
     if expired.days > 7:
-        d.expired = True
-        d.updated_at = datetime.now()
-        db.commit()
+        url_shortener_repo.expire_url_shorten(db, d)
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=error.HTTPERREXPIRED
         )
@@ -104,18 +77,11 @@ def get_url_stats(short_url: str, db: Session = Depends(get_db)):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=error.HTTPERRINVALIDURL
         )
-    try:
-        stats: list[models.UrlStats] = (
-            db.query(models.UrlStats).filter(models.UrlStats.url_id == id).all()
-        )
-        resp = schemas.UrlStats(url_id=id.hex, statusCounts={})
-        for s in stats:
-            resp.statusCounts[s.status.name] = (
-                resp.statusCounts.get(s.status.name, 0) + 1
-            )
-        return [resp]
-    except HTTPException as e:
-        raise e
+    stats = url_stats_repo.get_url_stats(db, id)
+    resp = schemas.UrlStats(url_id=id.hex, statusCounts={})
+    for s in stats:
+        resp.statusCounts[s.status.name] = resp.statusCounts.get(s.status.name, 0) + 1
+    return resp
 
 
 def url_to_uuid(url):

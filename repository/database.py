@@ -7,19 +7,6 @@ SQLALCHEMY_DATABASE_URL = (
 )
 
 engine = create_engine(SQLALCHEMY_DATABASE_URL)
-
-# Ensure the function utc_timestamp() is marked as immutable
-with engine.connect() as conn:
-    conn.execute(
-        text("""
-        CREATE OR REPLACE FUNCTION public.utc_timestamp() RETURNS timestamp with time zone
-        LANGUAGE sql IMMUTABLE
-        AS $$
-            SELECT statement_timestamp() AT TIME ZONE 'UTC';
-        $$;
-    """)
-    )
-
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()
