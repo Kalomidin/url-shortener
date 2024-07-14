@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 import uuid
 from fastapi import HTTPException, Depends
 from sqlalchemy.orm import Session
@@ -25,7 +25,7 @@ def create_url_shorten(
     url = req.url
     url_id = url_to_uuid(url)
     id = url_to_uuid(url + datetime.now().isoformat())
-    d = url_shortener_repo.create_url_shorten(db, id, url, url_id)
+    d = url_shortener_repo.create_url_shorten(db, id, url, url_id, req.expiry_days)
     return schemas.CreateUrlShortenerResponse(short_url=d.id.hex)
 
 
@@ -57,14 +57,16 @@ def _get_url(id: uuid.UUID, db: Session) -> RedirectResponse:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=error.HTTPERRNOTFOUND
         )
+    if d.expiry_days is None:
+        return RedirectResponse(url=d.url, status_code=status.HTTP_301_MOVED_PERMANENTLY)
+
     # check if it is expired
     expired = datetime.now().replace(tzinfo=None) - d.created_at.replace(tzinfo=None)
-    if expired.days > 7:
+    if expired.days > d.expiry_days:
         url_shortener_repo.expire_url_shorten(db, d)
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=error.HTTPERREXPIRED
         )
-
     return RedirectResponse(url=d.url, status_code=status.HTTP_301_MOVED_PERMANENTLY)
 
 

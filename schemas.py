@@ -3,6 +3,7 @@ from pydantic import BaseModel
 
 class CreateUrlShortenerRequest(BaseModel):
     url: str
+    expiry_days: int | None = None
 
 
 class CreateUrlShortenerResponse(BaseModel):
