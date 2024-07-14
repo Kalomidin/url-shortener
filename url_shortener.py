@@ -52,7 +52,7 @@ def get_url(short_url: str, db: Session = Depends(get_db)):
 
 
 def _get_url(id: uuid.UUID, db: Session) -> RedirectResponse:
-    d = url_shortener_repo.find_url_shorten_by_url_id(db, id)
+    d = url_shortener_repo.find_url_shorten_by_id(db, id)
     if d is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=error.HTTPERRNOTFOUND
@@ -68,7 +68,7 @@ def _get_url(id: uuid.UUID, db: Session) -> RedirectResponse:
     return RedirectResponse(url=d.url, status_code=status.HTTP_301_MOVED_PERMANENTLY)
 
 
-@router.get("/stats/{short_url}", response_model=list[schemas.UrlStats])
+@router.get("/stats/{short_url}", response_model=schemas.UrlStats)
 def get_url_stats(short_url: str, db: Session = Depends(get_db)):
     id = None
     try:

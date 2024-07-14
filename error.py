@@ -1,4 +1,4 @@
-from repository.models import UrlStatus
+from repository.url_stats import UrlStatus
 
 HTTPERRNOTFOUND = "URL not found"
 HTTPERREXPIRED = "URL expired"

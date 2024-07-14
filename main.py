@@ -1,9 +1,8 @@
 from fastapi import FastAPI
-from repository import models
-from repository.database import engine
-import url_hasher
+import repository.database as database
+import url_shortener
 
 app = FastAPI()
 
-models.Base.metadata.create_all(bind=engine)
-app.include_router(url_hasher.router)
+database.Base.metadata.create_all(bind=database.engine)
+app.include_router(url_shortener.router)
