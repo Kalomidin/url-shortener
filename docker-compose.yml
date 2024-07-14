@@ -1,0 +1,13 @@
+version: '3.9'
+
+services:
+  database:
+    container_name: memento-ai-pg
+    image: postgis/postgis:15-3.4-alpine  # Using PostGIS with Postgres 15 on Alpine
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: memento-ai-db
+    ports:
+      - "5433:5432"
