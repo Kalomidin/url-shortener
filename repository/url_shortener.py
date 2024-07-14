@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import date, datetime
 import uuid
 from repository.database import Base
 from sqlalchemy import (
@@ -17,7 +17,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 class UrlShortener(Base):
     __tablename__ = "url_shortener"
 
-    id: uuid.UUID = Column(Uuid, primary_key=True, nullable=False)
+    id: uuid.UUID = Column(Uuid, primary_key=True, nullable=False, default=uuid.uuid4)
     url: str = Column(String, nullable=False)
     url_id: uuid.UUID = Column(Uuid, nullable=False)
     created_at: date = Column(TIMESTAMP(timezone=True), server_default=text("now()"))
@@ -38,14 +38,17 @@ class UrlShortener(Base):
 
     def __repr__(self) -> str:
         return (
-            "UrlShortener(id={self.id!r}, url={self.url!r}," + "url_id={self.url_id!r}), expiry_days={self.expiry_days!r}"
+            "UrlShortener(url={self.url!r},"
+            + "url_id={self.url_id!r}), expiry_days={self.expiry_days!r}"
         )
 
 
-def create_url_shorten(db, id: uuid.UUID, url: str, url_id: uuid.UUID, expiry_days: int | None) -> UrlShortener:
+def create_url_shorten(
+    db, url: str, url_id: uuid.UUID, expiry_days: int | None
+) -> UrlShortener:
     stmt = (
         pg_insert(UrlShortener)
-        .values(id=id, url=url, url_id=url_id, expiry_days=expiry_days)
+        .values(url=url, url_id=url_id, expiry_days=expiry_days)
         .on_conflict_do_nothing()
     )
     db.connection().execute(stmt)
@@ -69,6 +72,14 @@ def find_url_shorten_by_id(db, id: uuid.UUID) -> UrlShortener:
     )
 
 
-def expire_url_shorten(db, d: UrlShortener):
+def update_url_expiry(db, d: UrlShortener) -> bool:
+    if d.expiry_days is None:
+        return False
+    expiry_duration = datetime.now().replace(tzinfo=None) - d.created_at.replace(
+        tzinfo=None
+    )
+    if expiry_duration.days < d.expiry_days:
+        return False
     d.expired = True
     db.commit()
+    return True
