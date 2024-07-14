@@ -16,4 +16,4 @@ class GetUrlShortenerResponse(BaseModel):
 
 class UrlStats(BaseModel):
     url_id: str
-    statusCounts: dict[str, int]
+    status_counts: dict[str, int]

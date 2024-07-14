@@ -80,9 +80,9 @@ def get_url_stats(short_url: str, db: Session = Depends(get_db)):
             status_code=status.HTTP_404_NOT_FOUND, detail=error.HTTPERRINVALIDURL
         )
     stats = url_stats_repo.get_url_stats(db, id)
-    resp = schemas.UrlStats(url_id=id.hex, statusCounts={})
+    resp = schemas.UrlStats(url_id=id.hex, status_counts={})
     for s in stats:
-        resp.statusCounts[s.status.name] = resp.statusCounts.get(s.status.name, 0) + 1
+        resp.status_counts[s.status.name] = resp.status_counts.get(s.status.name, 0) + 1
     return resp
 
 
